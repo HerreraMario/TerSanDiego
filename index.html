@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Portón</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-image: url('https://aplicacionesweb.webcindario.com/Porton/img/porton.jpg');
+            background-size: cover;
+            background-position: center;
+        }
+        h1 {
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            margin-bottom: 30px;
+        }
+        .auth-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+        }
+        .auth-container input {
+            padding: 12px 15px;
+            font-size: 16px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .auth-container button {
+            padding: 12px 20px;
+            font-size: 16px;
+            background-color: #28a745;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+        }
+        .auth-container button:hover {
+            background-color: #218838;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        .auth-container button:active {
+            transform: scale(0.95);
+        }
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .button-label {
+            font-size: 22px;
+            color: #fff;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .button {
+            padding: 20px 40px;
+            font-size: 24px;
+            color: #fff;
+            background-color: #007bff;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .button:hover {
+            background-color: #0056b3;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        .button:active {
+            transform: translateY(3px);
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.4);
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        .spinner.red {
+            border-left-color: #ff4c4c;
+        }
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1 id="locationName"></h1>
+    <div class="auth-container">
+        <input type="email" id="email" placeholder="Correo electrónico">
+        <input type="password" id="password" placeholder="Contraseña">
+        <button onclick="register()">Registrarse</button>
+        <button onclick="login()">Iniciar Sesión</button>
+        <button onclick="logout()">Cerrar Sesión</button>
+    </div>
+    <div class="button-container">
+        <div class="button-label">P1</div>
+        <button class="button" id="ledButton" onclick="toggleLED()">Controlar Portón</button>
+        <div id="spinner" class="spinner hidden"></div>
+    </div>
+</body>
+</html>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-database.js"></script>
+    <script>
+        const currentLocation = "TerSanDiego";
+
+        document.addEventListener("DOMContentLoaded", function() {
+            document.getElementById('locationName').textContent = currentLocation;
+        });
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCJr9tURp9eHXbxmV8-1tAZAt_q02N80r8",
+            authDomain: "control-ce52d.firebaseapp.com",
+            databaseURL: "https://control-ce52d-default-rtdb.firebaseio.com",
+            projectId: "control-ce52d",
+            storageBucket: "control-ce52d.appspot.com",
+            messagingSenderId: "920744747254",
+            appId: "1:920744747254:web:ca7e88528f3d6a4b368cd7"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+
+        firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+            .catch((error) => {
+                console.error("Error al configurar la persistencia de sesión:", error);
+            });
+
+        function getDeviceIdentifier() {
+            return navigator.userAgent + navigator.platform;
+        }
+
+        function validateEmail(email) {
+            const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            return re.test(String(email).toLowerCase());
+        }
+
+        function validatePassword(password) {
+            return password.length >= 6; // Contraseña con mínimo 6 caracteres
+        }
+
+        function register() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const deviceId = getDeviceIdentifier();
+
+            if (!validateEmail(email)) {
+                alert("Por favor, introduce un correo electrónico válido.");
+                return;
+            }
+
+            if (!validatePassword(password)) {
+                alert("La contraseña debe tener al menos 6 caracteres.");
+                return;
+            }
+
+            firebase.auth().createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    const emailKey = email.replace(/\./g, ',');
+                    firebase.database().ref(`${currentLocation}/usuarios/${emailKey}`).set({
+                        deviceId: deviceId,
+                        enabled: false,
+                        isAdmin: false
+                    });
+
+                    const user = firebase.auth().currentUser;
+                    user.sendEmailVerification().then(() => {
+                        alert("Verifica tu correo electrónico para completar el registro.");
+                    }).catch((error) => {
+                        console.error("Error al enviar correo de verificación:", error);
+                        alert("Error al enviar correo de verificación: " + error.message);
+                    });
+                })
+                .catch((error) => {
+                    console.error("Error al registrar usuario:", error);
+                    alert("Error al registrar usuario: " + error.message);
+                });
+        }
+
+        function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const deviceId = getDeviceIdentifier();
+
+            if (!validateEmail(email)) {
+                alert("Por favor, introduce un correo electrónico válido.");
+                return;
+            }
+
+            if (!validatePassword(password)) {
+                alert("La contraseña debe tener al menos 6 caracteres.");
+                return;
+            }
+
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    const emailKey = email.replace(/\./g, ',');
+                    firebase.database().ref(`${currentLocation}/usuarios/${emailKey}`).once('value').then((snapshot) => {
+                        const userData = snapshot.val();
+                        if (userData && userData.deviceId === deviceId) {
+                            if (userCredential.user.emailVerified) {
+                                if (userData.enabled) {
+                                    alert("Inicio de sesión exitoso");
+                                } else {
+                                    alert("Tu cuenta está inhabilitada. Contacta al administrador.");
+                                    firebase.auth().signOut();
+                                }
+                            } else {
+                                alert("Por favor, verifica tu correo electrónico antes de iniciar sesión.");
+                                firebase.auth().signOut();
+                            }
+                        } else {
+                            alert("Inicio de sesión denegado. Este dispositivo no está autorizado.");
+                            firebase.auth().signOut();
+                        }
+                    });
+                })
+                .catch((error) => {
+                    console.error("Error al iniciar sesión:", error);
+                    alert("Error al iniciar sesión: " + error.message);
+                });
+        }
+
+        function logout() {
+            firebase.auth().signOut()
+                .then(() => {
+                    alert("Sesión cerrada con éxito");
+                })
+                .catch((error) => {
+                    console.error("Error al cerrar sesión:", error);
+                    alert("Error al cerrar sesión: " + error.message);
+                });
+        }
+    </script>
+    <script>
+        function toggleLED() {
+            const user = firebase.auth().currentUser;
+            if (user) {
+                const spinner = document.getElementById('spinner');
+                const ledButton = document.getElementById('ledButton');
+
+                spinner.classList.remove('hidden');
+
+                user.reload().then(() => {
+                    const emailKey = user.email.replace(/\./g, ',');
+                    firebase.database().ref(`${currentLocation}/usuarios/${emailKey}`).once('value').then((snapshot) => {
+                        const userData = snapshot.val();
+                        if (userData.enabled) {
+                            const dbRef = firebase.database().ref(`${currentLocation}/RelePorton1`);
+                            dbRef.once('value').then((snapshot) => {
+                                const estadoActual = snapshot.val();
+                                const nuevoEstado = estadoActual === 1 ? 0 : 1;
+                                dbRef.set(nuevoEstado).then(() => {
+                                    console.log(`Estado del LED actualizado a ${nuevoEstado}`);
+                                    updateButtonState(nuevoEstado);
+                                    waitForLEDReset();
+                                }).catch((error) => {
+                                    console.error("Error al actualizar el estado del LED:", error);
+                                    spinner.classList.add('hidden');
+                                    alert("Error al actualizar el estado del LED: " + error.message);
+                                });
+                            }).catch((error) => {
+                                console.error("Error al obtener el estado actual del LED:", error);
+                                spinner.classList.add('hidden');
+                                alert("Error al obtener el estado actual del LED: " + error.message);
+                            });
+                        } else {
+                            alert("Tu cuenta está inhabilitada. Contacta al administrador.");
+                            spinner.classList.add('hidden');
+                        }
+                    }).catch((error) => {
+                        console.error("Error al obtener los datos del usuario:", error);
+                        alert("Error al obtener los datos del usuario: " + error.message);
+                    });
+                }).catch((error) => {
+                    console.error("Error al recargar el usuario:", error);
+                    alert("Error al recargar el usuario: " + error.message);
+                });
+            } else {
+                alert("Por favor, inicia sesión para controlar el portón");
+            }
+        }
+
+        function waitForLEDReset() {
+            const dbRef = firebase.database().ref(`${currentLocation}/RelePorton1`);
+            dbRef.on('value', (snapshot) => {
+                const estadoActual = snapshot.val();
+                if (estadoActual === 0) {
+                    updateButtonState(0);
+                    dbRef.off();
+                    document.getElementById('spinner').classList.add('hidden');
+                }
+            });
+        }
+
+        function updateButtonState(newState) {
+            const ledButton = document.getElementById('ledButton');
+            if (newState === 1) {
+                ledButton.textContent = 'Portón Activado';
+                ledButton.style.backgroundColor = '#ff4c4c';
+                document.getElementById('spinner').classList.remove('hidden');
+                document.getElementById('spinner').classList.add('red');
+            } else {
+                ledButton.textContent = 'Controlar Portón';
+                ledButton.style.backgroundColor = '#007bff';
+                document.getElementById('spinner').classList.add('hidden');
+                document.getElementById('spinner').classList.remove('red');
+            }
+        }
+
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                console.log("Usuario autenticado:", user.email);
+            } else {
+                console.log("Usuario no autenticado");
+            }
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                login();
+            }
+        });
+    </script>
+</html>
